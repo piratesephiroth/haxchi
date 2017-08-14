@@ -73,6 +73,7 @@
 #define IOCTL_FSA_CHANGEMODE        0x58
 #define IOCTL_FSA_FLUSHVOLUME       0x59
 #define IOCTL_CHECK_IF_IOSUHAX      0x5B
+#define IOCTL_FSA_CHANGEOWNER       0x5C
 
 //static u8 threadStack[0x1000] __attribute__((aligned(0x20)));
 
@@ -414,6 +415,16 @@ static int ipc_ioctl(ipcmessage *message)
         int mode = message->ioctl.buffer_in[2];
 
         message->ioctl.buffer_io[0] = FSA_ChangeMode(fd, path, mode);
+        break;
+    }
+    case IOCTL_FSA_CHANGEOWNER:
+    {
+        int fd = message->ioctl.buffer_in[0];
+        char *path = ((char *)message->ioctl.buffer_in) + message->ioctl.buffer_in[1];
+        int user = message->ioctl.buffer_in[2];
+        int group = message->ioctl.buffer_in[3];
+
+        message->ioctl.buffer_io[0] = FSA_ChangeOwner(fd, path, user, group);
         break;
     }
 	case IOCTL_CHECK_IF_IOSUHAX:

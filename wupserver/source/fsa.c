@@ -314,6 +314,24 @@ int FSA_ChangeMode(int fd, char *path, int mode)
 	return ret;
 }
 
+int FSA_ChangeOwner(int fd, char *path, int user, int group)
+{
+	u8* iobuf = allocIobuf();
+	u32* inbuf = (u32*)iobuf;
+	u32* outbuf = (u32*)&iobuf[0x520];
+
+	strncpy((char*)&inbuf[0x01], path, 0x27F);
+	inbuf[0x284/4] = 0; // ignored
+	inbuf[0x288/4] = user;
+	inbuf[0x28C/4] = 0; // ignored
+	inbuf[0x290/4] = group;
+
+	int ret = svcIoctl(fd, 0x70, inbuf, 0x520, outbuf, 0x293);
+
+	freeIobuf(iobuf);
+	return ret;
+}
+
 // type 4 :
 // 		0x08 : device size in sectors (u64)
 // 		0x10 : device sector size (u32)
