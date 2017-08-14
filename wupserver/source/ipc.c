@@ -421,10 +421,10 @@ static int ipc_ioctl(ipcmessage *message)
     {
         int fd = message->ioctl.buffer_in[0];
         char *path = ((char *)message->ioctl.buffer_in) + message->ioctl.buffer_in[1];
-        int user = message->ioctl.buffer_in[2];
-        int group = message->ioctl.buffer_in[3];
+        u32 owner = message->ioctl.buffer_in[2];
+        u32 group = message->ioctl.buffer_in[3];
 
-        message->ioctl.buffer_io[0] = FSA_ChangeOwner(fd, path, user, group);
+        message->ioctl.buffer_io[0] = FSA_ChangeOwner(fd, path, owner, group);
         break;
     }
 	case IOCTL_CHECK_IF_IOSUHAX:

@@ -314,7 +314,7 @@ int FSA_ChangeMode(int fd, char *path, int mode)
 	return ret;
 }
 
-int FSA_ChangeOwner(int fd, char *path, int user, int group)
+int FSA_ChangeOwner(int fd, char *path, u32 owner, u32 group)
 {
 	u8* iobuf = allocIobuf();
 	u32* inbuf = (u32*)iobuf;
@@ -322,7 +322,7 @@ int FSA_ChangeOwner(int fd, char *path, int user, int group)
 
 	strncpy((char*)&inbuf[0x01], path, 0x27F);
 	inbuf[0x284/4] = 0; // ignored
-	inbuf[0x288/4] = user;
+	inbuf[0x288/4] = owner;
 	inbuf[0x28C/4] = 0; // ignored
 	inbuf[0x290/4] = group;
 

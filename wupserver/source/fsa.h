@@ -51,7 +51,7 @@ int FSA_SetPosFile(int fd, int fileHandle, u32 position);
 int FSA_GetStat(int fd, char *path, fileStat_s* out_data);
 int FSA_Remove(int fd, char *path);
 int FSA_ChangeMode(int fd, char *path, int mode);
-int FSA_ChangeOwner(int fd, char *path, int user, int group);
+int FSA_ChangeOwner(int fd, char *path, u32 owner, u32 group);
 
 int FSA_RawOpen(int fd, char* device_path, int* outHandle);
 int FSA_RawRead(int fd, void* data, u32 size_bytes, u32 cnt, u64 sector_offset, int device_handle);
