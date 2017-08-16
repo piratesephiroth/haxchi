@@ -50,7 +50,7 @@
 #define IOCTL_FSA_CLOSE             0x41
 #define IOCTL_FSA_MOUNT             0x42
 #define IOCTL_FSA_UNMOUNT           0x43
-#define IOCTL_FSA_GETDEVICEINFO     0x44
+#define IOCTL_FSA_GETINFO		    0x44
 #define IOCTL_FSA_OPENDIR           0x45
 #define IOCTL_FSA_READDIR           0x46
 #define IOCTL_FSA_CLOSEDIR          0x47
@@ -58,7 +58,7 @@
 #define IOCTL_FSA_OPENFILE          0x49
 #define IOCTL_FSA_READFILE          0x4A
 #define IOCTL_FSA_WRITEFILE         0x4B
-#define IOCTL_FSA_STATFILE          0x4C
+#define IOCTL_FSA_GETSTATFILE       0x4C
 #define IOCTL_FSA_CLOSEFILE         0x4D
 #define IOCTL_FSA_SETFILEPOS        0x4E
 #define IOCTL_FSA_GETSTAT           0x4F
@@ -240,13 +240,13 @@ static int ipc_ioctl(ipcmessage *message)
         message->ioctl.buffer_io[0] = FSA_FlushVolume(fd, path);
         break;
     }
-    case IOCTL_FSA_GETDEVICEINFO:
+    case IOCTL_FSA_GETINFO:
     {
         int fd = message->ioctl.buffer_in[0];
         char *device_path = ((char *)message->ioctl.buffer_in) + message->ioctl.buffer_in[1];
         int type = message->ioctl.buffer_in[2];
 
-        message->ioctl.buffer_io[0] = FSA_GetDeviceInfo(fd, device_path, type, message->ioctl.buffer_io + 1);
+        message->ioctl.buffer_io[0] = FSA_GetInfo(fd, device_path, type, message->ioctl.buffer_io + 1);
         break;
     }
     case IOCTL_FSA_OPENDIR:
@@ -313,12 +313,12 @@ static int ipc_ioctl(ipcmessage *message)
         message->ioctl.buffer_io[0] = FSA_WriteFile(fd, ((u8*)message->ioctl.buffer_in) + 0x40, size, cnt, fileHandle, flags);
         break;
     }
-    case IOCTL_FSA_STATFILE:
+    case IOCTL_FSA_GETSTATFILE:
     {
         int fd = message->ioctl.buffer_in[0];
         int fileHandle = message->ioctl.buffer_in[1];
 
-        message->ioctl.buffer_io[0] = FSA_StatFile(fd, fileHandle, (fileStat_s*)(message->ioctl.buffer_io + 1));
+        message->ioctl.buffer_io[0] = FSA_GetStatFile(fd, fileHandle, (FSStat*)(message->ioctl.buffer_io + 1));
         break;
     }
     case IOCTL_FSA_CLOSEFILE:
@@ -343,7 +343,7 @@ static int ipc_ioctl(ipcmessage *message)
         int fd = message->ioctl.buffer_in[0];
         char *path = ((char *)message->ioctl.buffer_in) + message->ioctl.buffer_in[1];
 
-        message->ioctl.buffer_io[0] = FSA_GetStat(fd, path, (fileStat_s*)(message->ioctl.buffer_io + 1));
+        message->ioctl.buffer_io[0] = FSA_GetStat(fd, path, (FSStat*)(message->ioctl.buffer_io + 1));
         break;
     }
     case IOCTL_FSA_REMOVE:

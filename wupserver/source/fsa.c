@@ -222,7 +222,7 @@ int FSA_WriteFile(int fd, void* data, u32 size, u32 cnt, int fileHandle, u32 fla
 	return _FSA_ReadWriteFile(fd, data, size, cnt, fileHandle, flags, false);
 }
 
-int FSA_StatFile(int fd, int handle, fileStat_s* out_data)
+int FSA_GetStatFile(int fd, int handle, FSStat* out_data)
 {
 	u8* iobuf = allocIobuf();
 	u32* inbuf = (u32*)iobuf;
@@ -232,7 +232,7 @@ int FSA_StatFile(int fd, int handle, fileStat_s* out_data)
 
 	int ret = svcIoctl(fd, 0x14, inbuf, 0x520, outbuf, 0x293);
 
-	if(out_data) memcpy(out_data, &outbuf[1], sizeof(fileStat_s));
+	if(out_data) memcpy(out_data, &outbuf[1], sizeof(FSStat));
 
 	freeIobuf(iobuf);
 	return ret;
@@ -267,21 +267,9 @@ int FSA_SetPosFile(int fd, int fileHandle, u32 position)
 	return ret;
 }
 
-int FSA_GetStat(int fd, char *path, fileStat_s* out_data)
+int FSA_GetStat(int fd, char *path, FSStat* out_data)
 {
-	u8* iobuf = allocIobuf();
-	u32* inbuf = (u32*)iobuf;
-	u32* outbuf = (u32*)&iobuf[0x520];
-
-	strncpy((char*)&inbuf[0x01], path, 0x27F);
-	inbuf[0x284/4] = 5;
-
-	int ret = svcIoctl(fd, 0x18, inbuf, 0x520, outbuf, 0x293);
-
-	if(out_data) memcpy(out_data, &outbuf[1], sizeof(fileStat_s));
-
-	freeIobuf(iobuf);
-	return ret;
+	return FSA_GetInfo(fd, path, 5, (u32*)out_data);
 }
 
 int FSA_Remove(int fd, char *path)
@@ -332,10 +320,19 @@ int FSA_ChangeOwner(int fd, char *path, u32 owner, u32 group)
 	return ret;
 }
 
+// 0 - FSA_GetFreeSpaceSize
+// 1 - FSA_GetDirSize
+// 2 - FSA_GetEntryNum
+// 3 - FSA_GetFileSystemInfo
+// 4 - FSA_GetDeviceInfo
+// 5 - FSA_GetStat
+// 6 - FSA_GetBadBlockInfo
+// 7 - FSA_GetJournalFreeSpaceS
+// 8 - FSA_GetFragmentBlockInfo
 // type 4 :
 // 		0x08 : device size in sectors (u64)
 // 		0x10 : device sector size (u32)
-int FSA_GetDeviceInfo(int fd, char* device_path, int type, u32* out_data)
+int FSA_GetInfo(int fd, char* device_path, int type, u32* out_data)
 {
 	u8* iobuf = allocIobuf();
 	u32* inbuf = (u32*)iobuf;
@@ -351,22 +348,22 @@ int FSA_GetDeviceInfo(int fd, char* device_path, int type, u32* out_data)
 	switch(type)
 	{
 		case 0: case 1: case 7:
-			size = 0x8;
+			size = sizeof(u64);
 			break;
 		case 2:
-			size = 0x4;
+			size = sizeof(u32);
 			break;
 		case 3:
-			size = 0x1E;
+			size = sizeof(FileSystemInfo);
 			break;
 		case 4:
-			size = 0x28;
+			size = sizeof(DeviceInfo);
 			break;
 		case 5:
-			size = 0x64;
+			size = sizeof(FSStat);
 			break;
 		case 6: case 8:
-			size = 0x14;
+			size = sizeof(BlockInfo);
 			break;
 	}
 
