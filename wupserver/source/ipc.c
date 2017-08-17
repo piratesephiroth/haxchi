@@ -89,6 +89,7 @@
 #define IOCTL_FSA_FLUSHQUOTA        0x69
 #define IOCTL_FSA_ROLLBACKQUOTA     0x6A
 #define IOCTL_FSA_ROLLBACKQUOTAFORCE 0x6B
+#define IOCTL_FSA_CHANGEMODEEX      0x6C
 
 //static u8 threadStack[0x1000] __attribute__((aligned(0x20)));
 
@@ -269,6 +270,15 @@ static int ipc_ioctl(ipcmessage *message)
             case IOCTL_FSA_ROLLBACKQUOTAFORCE: func = FSA_RollbackQuotaForce; break;
         }
         message->ioctl.buffer_io[0] = func(fd, path);
+        break;
+    }
+    case IOCTL_FSA_RENAME:
+    {
+        int fd = message->ioctl.buffer_in[0];
+        char *old_path = ((char *)message->ioctl.buffer_in) + message->ioctl.buffer_in[1];
+        char *new_path = ((char *)message->ioctl.buffer_in) + message->ioctl.buffer_in[2];
+
+        message->ioctl.buffer_io[0] = FSA_Rename(fd, old_path, new_path);
         break;
     }
     case IOCTL_FSA_GETINFO:
@@ -479,12 +489,17 @@ static int ipc_ioctl(ipcmessage *message)
         break;
     }
     case IOCTL_FSA_CHANGEMODE:
+    case IOCTL_FSA_CHANGEMODEEX:
     {
         int fd = message->ioctl.buffer_in[0];
         char *path = ((char *)message->ioctl.buffer_in) + message->ioctl.buffer_in[1];
         int mode = message->ioctl.buffer_in[2];
+        int mask = 0x777;
+        if (message->ioctl.command == IOCTL_FSA_CHANGEMODEEX) {
+            mask = message->ioctl.buffer_in[3];
+        }
 
-        message->ioctl.buffer_io[0] = FSA_ChangeMode(fd, path, mode);
+        message->ioctl.buffer_io[0] = FSA_ChangeMode(fd, path, mode, mask);
         break;
     }
     case IOCTL_FSA_CHANGEOWNER:

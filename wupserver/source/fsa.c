@@ -353,9 +353,9 @@ int FSA_Rename(int fd, char *old_path, char *new_path)
 	return ret;
 }
 
-int FSA_ChangeMode(int fd, char *path, int mode)
+int FSA_ChangeMode(int fd, char *path, int mode, int mask)
 {
-	return _ioctl_fd_path_args(fd, path, 0x20, 2, mode, 0x777, 0, NULL, 0); // 0x777 - mask
+	return _ioctl_fd_path_args(fd, path, 0x20, 2, mode, mask, 0, NULL, 0); // 0x777 - mask
 }
 
 int FSA_ChangeOwner(int fd, char *path, u32 owner, u32 group)

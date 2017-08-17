@@ -96,7 +96,8 @@ int FSA_GetPosFile(int fd, int fileHandle, u32* out_position);
 int FSA_SetPosFile(int fd, int fileHandle, u32 position);
 int FSA_IsEof(int fd, int fileHandle);
 int FSA_Remove(int fd, char *path);
-int FSA_ChangeMode(int fd, char *path, int mode);
+int FSA_Rename(int fd, char *old_path, char *new_path);
+int FSA_ChangeMode(int fd, char *path, int mode, int mask);
 int FSA_ChangeOwner(int fd, char *path, u32 owner, u32 group);
 
 int FSA_RawOpen(int fd, char* device_path, int* outHandle);
