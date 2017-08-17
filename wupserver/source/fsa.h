@@ -54,6 +54,9 @@ typedef struct
 #define FSA_MOUNTFLAGS_BINDMOUNT (1 << 0)
 #define FSA_MOUNTFLAGS_GLOBAL (1 << 1)
 
+#define FSA_OPENFLAGS_OPEN_UNENCRYPTED (1 << 0)
+#define FSA_OPENFLAGS_PREALLOC_SPACE (1 << 1)
+
 int FSA_Open();
 
 int FSA_Mount(int fd, char* device_path, char* volume_path, u32 flags, char* arg_string, int arg_string_len);
@@ -70,12 +73,21 @@ int FSA_RewindDir(int fd, int handle);
 int FSA_CloseDir(int fd, int handle);
 int FSA_ChangeDir(int fd, char* path);
 
-int FSA_OpenFile(int fd, char* path, char* mode, int* outHandle);
-int FSA_ReadFile(int fd, void* data, u32 size, u32 cnt, int fileHandle, u32 flags);
-int FSA_WriteFile(int fd, void* data, u32 size, u32 cnt, int fileHandle, u32 flags);
+//int FSA_OpenFile(int fd, char* path, char* mode, int* outHandle);
+int FSA_OpenFileEx(int fd, char* path, char* mode, int* outHandle, u32 flags, int create_mode, u32 create_alloc_size);
+//int FSA_ReadFile(int fd, void* data, u32 size, u32 cnt, int fileHandle, u32 flags);
+//int FSA_WriteFile(int fd, void* data, u32 size, u32 cnt, int fileHandle, u32 flags);
+int FSA_ReadFileWithPos(int fd, void* data, u32 size, u32 cnt, u32 position, int fileHandle, u32 flags);
+int FSA_WriteFileWithPos(int fd, void* data, u32 size, u32 cnt, u32 position, int fileHandle, u32 flags);
+//int FSA_AppendFile(int fd, u32 size, u32 cnt, int fileHandle);
+int FSA_AppendFileEx(int fd, u32 size, u32 cnt, int fileHandle, u32 flags);
 int FSA_GetStatFile(int fd, int handle, FSStat* out_data);
 int FSA_CloseFile(int fd, int fileHandle);
+int FSA_FlushFile(int fd, int handle);
+int FSA_TruncateFile(int fd, int handle);
+int FSA_GetPosFile(int fd, int fileHandle, u32* out_position);
 int FSA_SetPosFile(int fd, int fileHandle, u32 position);
+int FSA_IsEof(int fd, int fileHandle);
 int FSA_Remove(int fd, char *path);
 int FSA_ChangeMode(int fd, char *path, int mode);
 int FSA_ChangeOwner(int fd, char *path, u32 owner, u32 group);

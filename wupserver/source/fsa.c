@@ -147,7 +147,13 @@ int FSA_ChangeDir(int fd, char* path)
 	return _ioctl_fd_path(fd, path, 0x05, NULL, 0);
 }
 
-int FSA_OpenFile(int fd, char* path, char* mode, int* outHandle)
+//int FSA_OpenFile(int fd, char* path, char* mode, int* outHandle)
+//{
+//	return FSA_OpenFileEx(fd, path, mode, outHandle, 0, 0x600, 0);
+//}
+
+// flags - 1 - maybe open/create unencrypted file?, 2 - preallocated size 
+int FSA_OpenFileEx(int fd, char* path, char* mode, int* outHandle, u32 flags, int create_mode, u32 create_alloc_size)
 {
 	u8* iobuf = allocIobuf();
 	u32* inbuf = (u32*)iobuf;
@@ -155,6 +161,9 @@ int FSA_OpenFile(int fd, char* path, char* mode, int* outHandle)
 
 	strncpy((char*)&inbuf[0x01], path, 0x27F);
 	strncpy((char*)&inbuf[0xA1], mode, 0x10);
+	inbuf[0xA5] = flags;
+	inbuf[0xA6] = create_mode;
+	inbuf[0xA7] = create_alloc_size;
 
 	int ret = svcIoctl(fd, 0x0E, inbuf, 0x520, outbuf, 0x293);
 
@@ -164,7 +173,7 @@ int FSA_OpenFile(int fd, char* path, char* mode, int* outHandle)
 	return ret;
 }
 
-int _FSA_ReadWriteFile(int fd, void* data, u32 size, u32 cnt, int fileHandle, u32 flags, bool read)
+int _FSA_ReadWriteFileWithPos(int fd, void* data, u32 size, u32 cnt, int pos, int fileHandle, u32 flags, bool read)
 {
 	u8* iobuf = allocIobuf();
 	u8* inbuf8 = iobuf;
@@ -175,6 +184,7 @@ int _FSA_ReadWriteFile(int fd, void* data, u32 size, u32 cnt, int fileHandle, u3
 
 	inbuf[0x08 / 4] = size;
 	inbuf[0x0C / 4] = cnt;
+	inbuf[0x10 / 4] = pos;
 	inbuf[0x14 / 4] = fileHandle;
 	inbuf[0x18 / 4] = flags;
 
@@ -195,14 +205,46 @@ int _FSA_ReadWriteFile(int fd, void* data, u32 size, u32 cnt, int fileHandle, u3
 	return ret;
 }
 
-int FSA_ReadFile(int fd, void* data, u32 size, u32 cnt, int fileHandle, u32 flags)
+//int FSA_ReadFile(int fd, void* data, u32 size, u32 cnt, int fileHandle, u32 flags)
+//{
+//	return _FSA_ReadWriteFileWithPos(fd, data, size, cnt, 0, fileHandle, flags & (~1), true);
+//}
+
+//int FSA_WriteFile(int fd, void* data, u32 size, u32 cnt, int fileHandle, u32 flags)
+//{
+//	return _FSA_ReadWriteFileWithPos(fd, data, size, cnt, 0, fileHandle, flags & (~1), false);
+//}
+
+int FSA_ReadFileWithPos(int fd, void* data, u32 size, u32 cnt, u32 position, int fileHandle, u32 flags)
 {
-	return _FSA_ReadWriteFile(fd, data, size, cnt, fileHandle, flags, true);
+	return _FSA_ReadWriteFileWithPos(fd, data, size, cnt, position, fileHandle, flags, true);
 }
 
-int FSA_WriteFile(int fd, void* data, u32 size, u32 cnt, int fileHandle, u32 flags)
+int FSA_WriteFileWithPos(int fd, void* data, u32 size, u32 cnt, u32 position, int fileHandle, u32 flags)
 {
-	return _FSA_ReadWriteFile(fd, data, size, cnt, fileHandle, flags, false);
+	return _FSA_ReadWriteFileWithPos(fd, data, size, cnt, position, fileHandle, flags, false);
+}
+
+//int FSA_AppendFile(int fd, u32 size, u32 cnt, int fileHandle) {
+//	return FSA_AppendFileEx(fd, size, cnt, 0);
+//}
+
+// flags - 1 - affects the way the blocks are allocated - maybe will cause it to allocate it at the end of the quota?
+int FSA_AppendFileEx(int fd, u32 size, u32 cnt, int fileHandle, u32 flags)
+{
+	u8* iobuf = allocIobuf();
+	u32* inbuf = (u32*)iobuf;
+	u32* outbuf = (u32*)&iobuf[0x520];
+
+	inbuf[1] = size;
+	inbuf[2] = cnt;
+	inbuf[3] = fileHandle;
+	inbuf[4] = flags;
+
+	int ret = svcIoctl(fd, 0x19, inbuf, 0x520, outbuf, 0x293);
+
+	freeIobuf(iobuf);
+	return ret;
 }
 
 int FSA_GetStatFile(int fd, int handle, FSStat* out_data)
@@ -213,6 +255,21 @@ int FSA_GetStatFile(int fd, int handle, FSStat* out_data)
 int FSA_CloseFile(int fd, int fileHandle)
 {
 	return _ioctl_fd_handle(fd, fileHandle, 0x15, NULL, 0);
+}
+
+int FSA_FlushFile(int fd, int fileHandle)
+{
+	return _ioctl_fd_handle(fd, fileHandle, 0x17, NULL, 0);
+}
+
+int FSA_TruncateFile(int fd, int fileHandle)
+{
+	return _ioctl_fd_handle(fd, fileHandle, 0x1A, NULL, 0);
+}
+
+int FSA_GetPosFile(int fd, int fileHandle, u32* out_position)
+{
+	return _ioctl_fd_handle(fd, fileHandle, 0x11, out_position, sizeof(u32));
 }
 
 int FSA_SetPosFile(int fd, int fileHandle, u32 position)
@@ -230,6 +287,11 @@ int FSA_SetPosFile(int fd, int fileHandle, u32 position)
 	return ret;
 }
 
+int FSA_IsEof(int fd, int fileHandle)
+{
+	return _ioctl_fd_handle(fd, fileHandle, 0x13, NULL, 0);
+}
+
 int FSA_GetStat(int fd, char *path, FSStat* out_data)
 {
 	return FSA_GetInfo(fd, path, 5, (u32*)out_data);
@@ -238,6 +300,21 @@ int FSA_GetStat(int fd, char *path, FSStat* out_data)
 int FSA_Remove(int fd, char *path)
 {
 	return _ioctl_fd_path(fd, path, 0x08, NULL, 0);
+}
+
+int FSA_Rename(int fd, char *old_path, char *new_path)
+{
+	u8* iobuf = allocIobuf();
+	u32* inbuf = (u32*)iobuf;
+	u32* outbuf = (u32*)&iobuf[0x520];
+
+	strncpy((char*)&inbuf[0x01], old_path, 0x27F);
+	strncpy((char*)&inbuf[0x01 + (0x280/4)], new_path, 0x27F);
+
+	int ret = svcIoctl(fd, 0x09, inbuf, 0x520, outbuf, 0x293);
+
+	freeIobuf(iobuf);
+	return ret;
 }
 
 int FSA_ChangeMode(int fd, char *path, int mode)

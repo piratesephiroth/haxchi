@@ -74,6 +74,15 @@
 #define IOCTL_FSA_FLUSHVOLUME       0x59
 #define IOCTL_CHECK_IF_IOSUHAX      0x5B
 #define IOCTL_FSA_CHANGEOWNER       0x5C
+#define IOCTL_FSA_OPENFILEEX		0x5D
+#define IOCTL_FSA_READFILEWITHPOS   0x5E
+#define IOCTL_FSA_WRITEFILEWITHPOS  0x5F
+#define IOCTL_FSA_APPENDFILE        0x60
+#define IOCTL_FSA_APPENDFILEEX      0x61
+#define IOCTL_FSA_FLUSHFILE         0x62
+#define IOCTL_FSA_TRUNCATEFILE      0x63
+#define IOCTL_FSA_GETPOSFILE        0x64
+#define IOCTL_FSA_ISEOF             0x65
 
 //static u8 threadStack[0x1000] __attribute__((aligned(0x20)));
 
@@ -275,41 +284,81 @@ static int ipc_ioctl(ipcmessage *message)
         break;
     }
     case IOCTL_FSA_OPENFILE:
+    case IOCTL_FSA_OPENFILEEX:
     {
         int fd = message->ioctl.buffer_in[0];
         char *path = ((char *)message->ioctl.buffer_in) + message->ioctl.buffer_in[1];
         char *mode = ((char *)message->ioctl.buffer_in) + message->ioctl.buffer_in[2];
+		u32 flags = 0x600;
+		int create_mode = 0;
+		u32 create_alloc_size = 0;
+		if (message->ioctl.command == IOCTL_FSA_OPENFILEEX) {
+			flags = message->ioctl.buffer_in[3];
+			create_mode = message->ioctl.buffer_in[4];
+			create_alloc_size = message->ioctl.buffer_in[5];
+		}
 
-        message->ioctl.buffer_io[0] = FSA_OpenFile(fd, path, mode, (int*)message->ioctl.buffer_io + 1);
+        message->ioctl.buffer_io[0] = FSA_OpenFileEx(fd, path, mode, (int*)message->ioctl.buffer_io + 1, flags, create_mode, create_alloc_size);
         break;
     }
     case IOCTL_FSA_READFILE:
+    case IOCTL_FSA_READFILEWITHPOS:
     case IOCTL_FSA_WRITEFILE:
+    case IOCTL_FSA_WRITEFILEWITHPOS:
     {
         int fd = message->ioctl.buffer_in[0];
         u32 size = message->ioctl.buffer_in[1];
         u32 cnt = message->ioctl.buffer_in[2];
-        int fileHandle = message->ioctl.buffer_in[3];
-        u32 flags = message->ioctl.buffer_in[4];
+		int i = 3;
+		u32 pos = 0;
+		int fileHandle;
+		u32 flags;
 		u8* buffer;
-		int (* func)(int, void*, u32, u32, int, u32);
+		int (* func)(int, void*, u32, u32, u32, int, u32);
+		switch(message->ioctl.command) {
+			case IOCTL_FSA_READFILEWITHPOS:
+			case IOCTL_FSA_WRITEFILEWITHPOS:
+				pos = message->ioctl.buffer_in[i++];
+		}
+        fileHandle = message->ioctl.buffer_in[i++];
+        flags = message->ioctl.buffer_in[i++] & (~1);
 
 		switch(message->ioctl.command) {
+			case IOCTL_FSA_READFILEWITHPOS:
+				flags |= 1;
 			case IOCTL_FSA_READFILE: 
-				func = FSA_ReadFile; 
+				func = FSA_ReadFileWithPos; 
 				buffer = ((u8*)message->ioctl.buffer_io);
 				break;
+			case IOCTL_FSA_WRITEFILEWITHPOS:
+				flags |= 1;
 			case IOCTL_FSA_WRITEFILE: 
-				func = FSA_WriteFile; 
+				func = FSA_WriteFileWithPos; 
 				buffer = ((u8*)message->ioctl.buffer_in);
 				break;
 		}
 		
-        message->ioctl.buffer_io[0] = func(fd, buffer + 0x40, size, cnt, fileHandle, flags);
+        message->ioctl.buffer_io[0] = func(fd, buffer + 0x40, size, cnt, pos, fileHandle, flags);
         break;
     }
+	
+	case IOCTL_FSA_APPENDFILE:
+	case IOCTL_FSA_APPENDFILEEX:
+	{
+        int fd = message->ioctl.buffer_in[0];
+        u32 size = message->ioctl.buffer_in[1];
+        u32 cnt = message->ioctl.buffer_in[2];
+        int fileHandle = message->ioctl.buffer_in[3];
+		u32 flags = 0;
+		if (message->ioctl.command == IOCTL_FSA_APPENDFILEEX) {
+			flags = message->ioctl.buffer_in[4];
+		}
+
+        message->ioctl.buffer_io[0] = FSA_AppendFileEx(fd, size, cnt, fileHandle, flags);		
+	}
     case IOCTL_FSA_READDIR:
     case IOCTL_FSA_GETSTATFILE:
+	case IOCTL_FSA_GETPOSFILE:
     {
         int fd = message->ioctl.buffer_in[0];
         int handle = message->ioctl.buffer_in[1];
@@ -318,6 +367,7 @@ static int ipc_ioctl(ipcmessage *message)
 		switch(message->ioctl.command) {
 			case IOCTL_FSA_READDIR: func = FSA_ReadDir; break;
 			case IOCTL_FSA_GETSTATFILE: func = FSA_GetStatFile; break;
+			case IOCTL_FSA_GETPOSFILE: func = FSA_GetPosFile; break;
 		}
         message->ioctl.buffer_io[0] = func(fd, handle, (void*)(message->ioctl.buffer_io + 1));
         break;
@@ -326,6 +376,9 @@ static int ipc_ioctl(ipcmessage *message)
     case IOCTL_FSA_CLOSEDIR:
     case IOCTL_FSA_RAW_CLOSE:
     case IOCTL_FSA_CLOSEFILE:
+	case IOCTL_FSA_FLUSHFILE:
+	case IOCTL_FSA_TRUNCATEFILE:
+	case IOCTL_FSA_ISEOF:
     {
         int fd = message->ioctl.buffer_in[0];
         int handle = message->ioctl.buffer_in[1];
@@ -336,6 +389,9 @@ static int ipc_ioctl(ipcmessage *message)
 			case IOCTL_FSA_CLOSEDIR: func = FSA_CloseDir; break;
 			case IOCTL_FSA_RAW_CLOSE: func = FSA_RawClose; break;
 			case IOCTL_FSA_CLOSEFILE: func = FSA_CloseFile; break;
+			case IOCTL_FSA_FLUSHFILE: func = FSA_FlushFile; break;
+			case IOCTL_FSA_TRUNCATEFILE: func = FSA_TruncateFile; break;
+			case IOCTL_FSA_ISEOF: func = FSA_IsEof; break;
 		}
         message->ioctl.buffer_io[0] = func(fd, handle);
         break;
@@ -378,11 +434,11 @@ static int ipc_ioctl(ipcmessage *message)
 
 		switch(message->ioctl.command) {
 			case IOCTL_FSA_RAW_READ: 
-				func = FSA_ReadFile; 
+				func = FSA_RawRead; 
 				buffer = ((u8*)message->ioctl.buffer_io);
 				break;
 			case IOCTL_FSA_RAW_WRITE: 
-				func = FSA_WriteFile; 
+				func = FSA_RawWrite; 
 				buffer = ((u8*)message->ioctl.buffer_in);
 				break;
 		}
