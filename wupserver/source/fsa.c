@@ -19,6 +19,48 @@ static void freeIobuf(void* ptr)
 	svcFree(0xCAFF, ptr);
 }
 
+int _ioctl_fd_handle(int fd, int handle, int ioctl_num, u32* out_data, u32 out_data_size)
+{
+	u8* iobuf = allocIobuf();
+	u32* inbuf = (u32*)iobuf;
+	u32* outbuf = (u32*)&iobuf[0x520];
+
+	inbuf[1] = handle;
+
+	int ret = svcIoctl(fd, ioctl_num, inbuf, 0x520, outbuf, 0x293);
+
+	if(out_data && out_data_size) memcpy(out_data, &outbuf[1], out_data_size);
+
+	freeIobuf(iobuf);
+	return ret;	
+}
+
+int _ioctl_fd_path_args(int fd, char* path, int ioctl_num, int args, u32 arg1, u32 arg2, u32 arg3, u32* out_data, u32 out_data_size)
+{
+	u8* iobuf = allocIobuf();
+	u32* inbuf = (u32*)iobuf;
+	u32* outbuf = (u32*)&iobuf[0x520];
+
+	strncpy((char*)&inbuf[0x01], path, 0x27F);
+	switch (args) {
+	case 3: inbuf[0x28C / 4] = arg3;
+	case 2: inbuf[0x288 / 4] = arg2;
+	case 1: inbuf[0x284 / 4] = arg1;
+	}
+
+	int ret = svcIoctl(fd, ioctl_num, inbuf, 0x520, outbuf, 0x293);
+
+	if(out_data && out_data_size) memcpy(out_data, &outbuf[1], out_data_size);
+
+	freeIobuf(iobuf);
+	return ret;	
+}
+
+int _ioctl_fd_path(int fd, char* path, int ioctl_num, u32* out_data, u32 out_data_size)
+{
+	return _ioctl_fd_path_args(fd, path, ioctl_num, 0, 0, 0, 0, out_data, out_data_size);
+}
+
 int FSA_Mount(int fd, char* device_path, char* volume_path, u32 flags, char* arg_string, int arg_string_len)
 {
 	u8* iobuf = allocIobuf();
@@ -48,78 +90,22 @@ int FSA_Mount(int fd, char* device_path, char* volume_path, u32 flags, char* arg
 
 int FSA_Unmount(int fd, char* path, u32 flags)
 {
-	u8* iobuf = allocIobuf();
-	u32* inbuf = (u32*)iobuf;
-	u32* outbuf = (u32*)&iobuf[0x520];
-
-	strncpy((char*)&inbuf[0x01], path, 0x27F);
-	inbuf[0x284 / 4] = flags;
-
-	int ret = svcIoctl(fd, 0x02, inbuf, 0x520, outbuf, 0x293);
-
-	freeIobuf(iobuf);
-	return ret;
+	return _ioctl_fd_path_args(fd, path, 0x02, 1, flags, 0, 0, NULL, 0);
 }
 
 int FSA_FlushVolume(int fd, char* volume_path)
 {
-	u8* iobuf = allocIobuf();
-	u32* inbuf = (u32*)iobuf;
-	u32* outbuf = (u32*)&iobuf[0x520];
+	return _ioctl_fd_path(fd, volume_path, 0x1B, NULL, 0);
+}
 
-	strncpy((char*)&inbuf[0x01], volume_path, 0x27F);
-
-	int ret = svcIoctl(fd, 0x1B, inbuf, 0x520, outbuf, 0x293);
-
-	freeIobuf(iobuf);
-	return ret;
+int FSA_RollbackVolume(int fd, char* volume_path)
+{
+	return _ioctl_fd_path(fd, volume_path, 0x1C, NULL, 0);
 }
 
 int FSA_MakeDir(int fd, char* path, u32 flags)
 {
-	u8* iobuf = allocIobuf();
-	u32* inbuf = (u32*)iobuf;
-	u32* outbuf = (u32*)&iobuf[0x520];
-
-	strncpy((char*)&inbuf[0x01], path, 0x27F);
-	inbuf[0x284 / 4] = flags;
-
-	int ret = svcIoctl(fd, 0x07, inbuf, 0x520, outbuf, 0x293);
-
-	freeIobuf(iobuf);
-	return ret;
-}
-
-int _ioctl_fd_handle(int fd, int handle, int ioctl_num, u32* out_data, u32 out_data_size)
-{
-	u8* iobuf = allocIobuf();
-	u32* inbuf = (u32*)iobuf;
-	u32* outbuf = (u32*)&iobuf[0x520];
-
-	inbuf[1] = handle;
-
-	int ret = svcIoctl(fd, ioctl_num, inbuf, 0x520, outbuf, 0x293);
-
-	if(out_data && out_data_size) memcpy(out_data, &outbuf[1], out_data_size);
-
-	freeIobuf(iobuf);
-	return ret;	
-}
-
-int _ioctl_fd_path(int fd, char* path, int ioctl_num, u32* out_data, u32 out_data_size)
-{
-	u8* iobuf = allocIobuf();
-	u32* inbuf = (u32*)iobuf;
-	u32* outbuf = (u32*)&iobuf[0x520];
-
-	strncpy((char*)&inbuf[0x01], path, 0x27F);
-
-	int ret = svcIoctl(fd, ioctl_num, inbuf, 0x520, outbuf, 0x293);
-
-	if(out_data && out_data_size) memcpy(out_data, &outbuf[1], out_data_size);
-
-	freeIobuf(iobuf);
-	return ret;	
+	return _ioctl_fd_path_args(fd, path, 0x07, 1, flags, 0, 0, NULL, 0);
 }
 
 int FSA_OpenDir(int fd, char* path, int* outHandle)
@@ -145,6 +131,56 @@ int FSA_CloseDir(int fd, int handle)
 int FSA_ChangeDir(int fd, char* path)
 {
 	return _ioctl_fd_path(fd, path, 0x05, NULL, 0);
+}
+
+int FSA_GetCwd(int fd, char* out_data, int output_size)
+{
+	u8* iobuf = allocIobuf();
+	u32* inbuf = (u32*)iobuf;
+	u32* outbuf = (u32*)&iobuf[0x520];
+
+	int ret = svcIoctl(fd, 0x06, inbuf, 0x520, outbuf, 0x293);
+
+	if (output_size > 0x27F) output_size = 0x27F;
+	if(out_data) strncpy(out_data, (char*)&outbuf[1], output_size);
+
+	freeIobuf(iobuf);
+	return ret;
+}
+
+int FSA_MakeQuota(int fd, char* path, u32 flags, u64 size)
+{
+	return _ioctl_fd_path_args(fd, path, 0x07, 3, flags, (size >> 32), (size & 0xFFFFFFFF), NULL, 0);
+}
+
+int FSA_FlushQuota(int fd, char* quota_path)
+{
+	return _ioctl_fd_path(fd, quota_path, 0x1E, NULL, 0);
+}
+
+static int _FSA_RollbackQuota(int fd, char* quota_path, int flag)
+{
+	return _ioctl_fd_path_args(fd, quota_path, 0x1F, 1, flag, 0, 0, NULL, 0);
+}
+
+int FSA_RollbackQuota(int fd, char* quota_path)
+{
+	return _FSA_RollbackQuota(fd, quota_path, 0);
+}
+
+int FSA_RollbackQuotaForce(int fd, char* quota_path)
+{
+	return _FSA_RollbackQuota(fd, quota_path, 0x80000000);
+}
+
+int FSA_RegisterFlushQuota(int fd, char* quota_path)
+{
+	return _ioctl_fd_path(fd, quota_path, 0x22, NULL, 0);
+}
+
+int FSA_FlushMultiQuota(int fd, char* quota_path)
+{
+	return _ioctl_fd_path(fd, quota_path, 0x23, NULL, 0);
 }
 
 //int FSA_OpenFile(int fd, char* path, char* mode, int* outHandle)
@@ -319,18 +355,7 @@ int FSA_Rename(int fd, char *old_path, char *new_path)
 
 int FSA_ChangeMode(int fd, char *path, int mode)
 {
-	u8* iobuf = allocIobuf();
-	u32* inbuf = (u32*)iobuf;
-	u32* outbuf = (u32*)&iobuf[0x520];
-
-	strncpy((char*)&inbuf[0x01], path, 0x27F);
-	inbuf[0x284/4] = mode;
-	inbuf[0x288/4] = 0x777; // mask
-
-	int ret = svcIoctl(fd, 0x20, inbuf, 0x520, outbuf, 0x293);
-
-	freeIobuf(iobuf);
-	return ret;
+	return _ioctl_fd_path_args(fd, path, 0x20, 2, mode, 0x777, 0, NULL, 0); // 0x777 - mask
 }
 
 int FSA_ChangeOwner(int fd, char *path, u32 owner, u32 group)

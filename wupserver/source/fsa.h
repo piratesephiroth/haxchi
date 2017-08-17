@@ -62,6 +62,7 @@ int FSA_Open();
 int FSA_Mount(int fd, char* device_path, char* volume_path, u32 flags, char* arg_string, int arg_string_len);
 int FSA_Unmount(int fd, char* path, u32 flags);
 int FSA_FlushVolume(int fd, char* volume_path);
+int FSA_RollbackVolume(int fd, char* volume_path);
 
 int FSA_GetInfo(int fd, char* device_path, int type, u32* out_data);
 int FSA_GetStat(int fd, char *path, FSStat* out_data);
@@ -72,6 +73,12 @@ int FSA_ReadDir(int fd, int handle, directoryEntry_s* out_data);
 int FSA_RewindDir(int fd, int handle);
 int FSA_CloseDir(int fd, int handle);
 int FSA_ChangeDir(int fd, char* path);
+int FSA_GetCwd(int fd, char* out_data, int output_size);
+
+int FSA_MakeQuota(int fd, char* path, u32 flags, u64 size);
+int FSA_FlushQuota(int fd, char* quota_path);
+int FSA_RollbackQuota(int fd, char* quota_path);
+int FSA_RollbackQuotaForce(int fd, char* quota_path);
 
 //int FSA_OpenFile(int fd, char* path, char* mode, int* outHandle);
 int FSA_OpenFileEx(int fd, char* path, char* mode, int* outHandle, u32 flags, int create_mode, u32 create_alloc_size);

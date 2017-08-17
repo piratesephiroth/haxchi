@@ -74,7 +74,7 @@
 #define IOCTL_FSA_FLUSHVOLUME       0x59
 #define IOCTL_CHECK_IF_IOSUHAX      0x5B
 #define IOCTL_FSA_CHANGEOWNER       0x5C
-#define IOCTL_FSA_OPENFILEEX		0x5D
+#define IOCTL_FSA_OPENFILEEX        0x5D
 #define IOCTL_FSA_READFILEWITHPOS   0x5E
 #define IOCTL_FSA_WRITEFILEWITHPOS  0x5F
 #define IOCTL_FSA_APPENDFILE        0x60
@@ -83,6 +83,12 @@
 #define IOCTL_FSA_TRUNCATEFILE      0x63
 #define IOCTL_FSA_GETPOSFILE        0x64
 #define IOCTL_FSA_ISEOF             0x65
+#define IOCTL_FSA_ROLLBACKVOLUME    0x66
+#define IOCTL_FSA_GETCWD            0x67
+#define IOCTL_FSA_MAKEQUOTA	        0x68
+#define IOCTL_FSA_FLUSHQUOTA        0x69
+#define IOCTL_FSA_ROLLBACKQUOTA     0x6A
+#define IOCTL_FSA_ROLLBACKQUOTAFORCE 0x6B
 
 //static u8 threadStack[0x1000] __attribute__((aligned(0x20)));
 
@@ -244,6 +250,10 @@ static int ipc_ioctl(ipcmessage *message)
     case IOCTL_FSA_FLUSHVOLUME:
     case IOCTL_FSA_REMOVE:
     case IOCTL_FSA_CHDIR:
+    case IOCTL_FSA_ROLLBACKVOLUME:
+    case IOCTL_FSA_FLUSHQUOTA:
+    case IOCTL_FSA_ROLLBACKQUOTA:
+    case IOCTL_FSA_ROLLBACKQUOTAFORCE:
     {
         int fd = message->ioctl.buffer_in[0];
         char *path = ((char *)message->ioctl.buffer_in) + message->ioctl.buffer_in[1];
@@ -253,6 +263,10 @@ static int ipc_ioctl(ipcmessage *message)
 			case IOCTL_FSA_FLUSHVOLUME: func = FSA_FlushVolume; break;
 			case IOCTL_FSA_REMOVE: func = FSA_Remove; break;
 			case IOCTL_FSA_CHDIR: func = FSA_ChangeDir; break;
+			case IOCTL_FSA_ROLLBACKVOLUME: func = FSA_RollbackVolume; break;
+			case IOCTL_FSA_FLUSHQUOTA: func = FSA_FlushQuota; break;
+			case IOCTL_FSA_ROLLBACKQUOTA: func = FSA_RollbackQuota; break;
+			case IOCTL_FSA_ROLLBACKQUOTAFORCE: func = FSA_RollbackQuotaForce; break;
 		}
         message->ioctl.buffer_io[0] = func(fd, path);
         break;
@@ -281,6 +295,24 @@ static int ipc_ioctl(ipcmessage *message)
         u32 flags = message->ioctl.buffer_in[2];
 
         message->ioctl.buffer_io[0] = FSA_MakeDir(fd, path, flags);
+        break;
+    }
+    case IOCTL_FSA_GETCWD:
+    {
+        int fd = message->ioctl.buffer_in[0];
+        int output_size = message->ioctl.buffer_in[1];
+
+        message->ioctl.buffer_io[0] = FSA_GetCwd(fd, (char*)(message->ioctl.buffer_io + 1), output_size);
+        break;
+    }
+    case IOCTL_FSA_MAKEQUOTA:
+    {
+        int fd = message->ioctl.buffer_in[0];
+        char *path = ((char *)message->ioctl.buffer_in) + message->ioctl.buffer_in[1];
+        u32 flags = message->ioctl.buffer_in[2];
+        u64 size = ((u64)message->ioctl.buffer_in[3] << 32ULL) | message->ioctl.buffer_in[4];
+
+        message->ioctl.buffer_io[0] = FSA_MakeQuota(fd, path, flags, size);
         break;
     }
     case IOCTL_FSA_OPENFILE:
