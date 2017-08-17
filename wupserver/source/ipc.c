@@ -257,7 +257,7 @@ static int ipc_ioctl(ipcmessage *message)
     {
         int fd = message->ioctl.buffer_in[0];
         char *path = ((char *)message->ioctl.buffer_in) + message->ioctl.buffer_in[1];
-        int (* func)(int, char*);
+        int (* func)(int, char*); // do not initialize
 
         switch(message->ioctl.command) {
             case IOCTL_FSA_FLUSHVOLUME: func = FSA_FlushVolume; break;
@@ -346,7 +346,7 @@ static int ipc_ioctl(ipcmessage *message)
         int fileHandle;
         u32 flags;
         u8* buffer;
-        int (* func)(int, void*, u32, u32, u32, int, u32);
+        int (* func)(int, void*, u32, u32, u32, int, u32); // do not initialize
         switch(message->ioctl.command) {
             case IOCTL_FSA_READFILEWITHPOS:
             case IOCTL_FSA_WRITEFILEWITHPOS:
@@ -394,12 +394,12 @@ static int ipc_ioctl(ipcmessage *message)
     {
         int fd = message->ioctl.buffer_in[0];
         int handle = message->ioctl.buffer_in[1];
-        int (* func)(int, int, void*);
+        int (* func)(int, int, void*); // do not initialize
 
         switch(message->ioctl.command) {
-            case IOCTL_FSA_READDIR: func = FSA_ReadDir; break;
-            case IOCTL_FSA_GETSTATFILE: func = FSA_GetStatFile; break;
-            case IOCTL_FSA_GETPOSFILE: func = FSA_GetPosFile; break;
+            case IOCTL_FSA_READDIR: func = (int (*)(int, int, void*))FSA_ReadDir; break;
+            case IOCTL_FSA_GETSTATFILE: func = (int (*)(int, int, void*))FSA_GetStatFile; break;
+            case IOCTL_FSA_GETPOSFILE: func = (int (*)(int, int, void*))FSA_GetPosFile; break;
         }
         message->ioctl.buffer_io[0] = func(fd, handle, (void*)(message->ioctl.buffer_io + 1));
         break;
@@ -414,7 +414,7 @@ static int ipc_ioctl(ipcmessage *message)
     {
         int fd = message->ioctl.buffer_in[0];
         int handle = message->ioctl.buffer_in[1];
-        int (* func)(int, int);
+        int (* func)(int, int); // do not initialize
 
         switch(message->ioctl.command) {
             case IOCTL_FSA_REWINDDIR: func = FSA_RewindDir; break;
@@ -462,7 +462,7 @@ static int ipc_ioctl(ipcmessage *message)
         u64 sector_offset = ((u64)message->ioctl.buffer_in[3] << 32ULL) | message->ioctl.buffer_in[4];
         int deviceHandle = message->ioctl.buffer_in[5];
         u8* buffer;
-        int (* func)(int, void*, u32, u32, u64, int);
+        int (* func)(int, void*, u32, u32, u64, int); // do not initialize
 
         switch(message->ioctl.command) {
             case IOCTL_FSA_RAW_READ: 
