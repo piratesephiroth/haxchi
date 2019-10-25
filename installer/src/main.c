@@ -586,6 +586,11 @@ int Menu_Main(void)
 						if(xmlNodeGetContent(cur_node) == NULL || !strlen((char*)xmlNodeGetContent(cur_node))) continue;
 						xmlNodeSetContent(cur_node, titleBuf);
 					}
+					if(memcmp(cur_node->name, "drc_use", 7) == 0)
+					{
+						if(xmlNodeGetContent(cur_node) == NULL || !strlen((char*)xmlNodeGetContent(cur_node))) continue;
+						xmlNodeSetContent(cur_node, (xmlChar*)"1");
+					}
 				}
 			}
 			//back to xml
