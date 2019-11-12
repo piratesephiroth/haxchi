@@ -128,7 +128,7 @@ void printhdr_noflip()
 #ifdef CB
 	println_noflip(0,"CBHC v1.6 by FIX94");
 #else
-	println_noflip(0,"Haxchi v2.5u2 by FIX94");
+	println_noflip(0,"Haxchi v2.5u4 by FIX94 (gamepad-free mod by pirate)");
 #endif
 	println_noflip(1,"Credits to smea, plutoo, yellows8, naehrwert, derrek and dimok");
 }
@@ -610,7 +610,7 @@ int Menu_Main(void)
 				//write back to nand
 				if(IOSUHAX_FSA_OpenFile(fsaFd, path, "wb", &mlcFd) >= 0)
 				{
-					println(line++,"Changing game title...");
+					println(line++,"Changing game title and gamepad requirement...");
 					//UTF-8 BOM
 					char bom[3] = { 0xEF, 0xBB, 0xBF };
 					if(memcmp(newXml, bom, 3) != 0 && memcmp(metaBuf, bom, 3) == 0)
@@ -624,6 +624,67 @@ int Menu_Main(void)
 			MEMBucket_free(metaBuf);
 		}
 		MEMBucket_free(titleBuf);
+	}
+
+	// modify mii maker's meta.xml as well
+	char mmMetapath[61];
+	char *titleIdLow[3] = { "1004A000", "1004A100", "1004A200" };
+	for (i=0; i < 3; i++)
+	{
+		sprintf(mmMetapath, "/vol/storage_mlc01/sys/title/00050010/%s/meta/meta.xml", titleIdLow[i]);
+		if(IOSUHAX_FSA_OpenFile(fsaFd, mmMetapath, "rb", &mlcFd) >= 0)
+		{
+			fileStat_s stats;
+			IOSUHAX_FSA_StatFile(fsaFd, mlcFd, &stats);
+			size_t metaSize = stats.size;
+			char *metaBuf = MEMBucket_alloc(metaSize,4);
+			fsa_read(fsaFd, mlcFd, metaBuf, metaSize);
+			IOSUHAX_FSA_CloseFile(fsaFd, mlcFd);
+			mlcFd = -1;
+			//parse doc
+			xmlDocPtr doc = xmlReadMemory(metaBuf, metaSize, "meta.xml", "utf-8", 0);
+			//change gamepad requirement
+			xmlNode *root_element = xmlDocGetRootElement(doc);
+			xmlNode *cur_node = NULL;
+			for (cur_node = root_element->children; cur_node; cur_node = cur_node->next) {
+				if (cur_node->type == XML_ELEMENT_NODE) {
+					if(memcmp(cur_node->name, "drc_use", 7) == 0)
+					{
+						if(xmlNodeGetContent(cur_node) == NULL || !strlen((char*)xmlNodeGetContent(cur_node))) continue;
+						xmlNodeSetContent(cur_node, (xmlChar*)"1");
+					}
+				}
+			}
+			//back to xml
+			xmlChar *newXml = NULL;
+			int newSize = 0;
+			xmlSaveNoEmptyTags = 1; //keeps original style
+			xmlDocDumpFormatMemoryEnc(doc, &newXml, &newSize, "utf-8", 0);
+			xmlFreeDoc(doc);
+			if(newXml != NULL && newSize > 0)
+			{
+				//libxml2 adds in extra \n at the end
+				if(newXml[newSize-1] == '\n' && metaBuf[metaSize-1] != '\n')
+				{
+					newXml[newSize-1] = '\0';
+					newSize--;
+				}
+				//write back to nand
+				if(IOSUHAX_FSA_OpenFile(fsaFd, mmMetapath, "wb", &mlcFd) >= 0)
+				{
+					println(line++,"Removing Mii Maker's gamepad requirement...");
+					//UTF-8 BOM
+					char bom[3] = { 0xEF, 0xBB, 0xBF };
+					if(memcmp(newXml, bom, 3) != 0 && memcmp(metaBuf, bom, 3) == 0)
+						fsa_write(fsaFd, mlcFd, bom, 0x03);
+					fsa_write(fsaFd, mlcFd, newXml, newSize);
+					IOSUHAX_FSA_CloseFile(fsaFd, mlcFd);
+					mlcFd = -1;
+				}
+				free(newXml);
+			}
+			MEMBucket_free(metaBuf);
+		}
 	}
 
 	sprintf(sdPath,"%s/bootDrcTex.tga",sdHaxchiPath);
